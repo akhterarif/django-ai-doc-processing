@@ -1,0 +1,76 @@
+version: '3.12'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: doc_processor_db
+      POSTGRES_USER: doc_processor_user
+      POSTGRES_PASSWORD: doc_processor_password
+    volumes:
+      - postgres_data_new:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doc_processor_user -d doc_processor_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: sh -c "sleep 30 && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - http_proxy=
+      - https_proxy=
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery:
+    build: .
+    command: celery -A django_ai_doc_processing worker -l info
+    volumes:
+      - .:/code
+    env_file:
+      - .env
+    environment:
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - http_proxy=
+      - https_proxy=
+    depends_on:
+      - web
+      - redis
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - web
+
+volumes:
+  postgres_data_new:

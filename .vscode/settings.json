@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/home/arif/projects/django-ai-doc-processing/.venv/bin/python": true,
+        "/^node --version \\|\\| echo 'no node'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
