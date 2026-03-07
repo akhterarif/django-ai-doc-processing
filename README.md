@@ -25,7 +25,11 @@ A Django-based backend system for processing uploaded PDF documents asynchronous
 ## Setup
 
 1. Clone the repository
-2. Set up environment variables:
+2. Copy environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+3. Edit `.env` with your actual values:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `WEBHOOK_URL`: Optional URL to receive POST notifications on processing completion
 3. Run with Docker:
