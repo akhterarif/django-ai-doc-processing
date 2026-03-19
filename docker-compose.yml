@@ -22,9 +22,43 @@ services:
     ports:
       - "6379:6379"
 
+  # -------------------------------------------------------------------------
+  # Ollama LLM server — serves Phi-4 on the OpenAI-compatible API
+  # -------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama   # model weights persist across restarts
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # -------------------------------------------------------------------------
+  # One-shot init container: pulls phi4 then exits 0.
+  # web and celery wait on service_completed_successfully.
+  # On subsequent docker-compose up, "ollama pull" is a no-op if the model
+  # is already in the ollama_data volume (manifest check only, ~2 s).
+  # -------------------------------------------------------------------------
+  ollama-init:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["ollama", "pull", "phi4"]
+    restart: "no"
+
   web:
     build: .
-    command: sh -c "sleep 30 && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/code
     ports:
@@ -36,11 +70,16 @@ services:
       - HTTPS_PROXY=
       - http_proxy=
       - https_proxy=
+      - LLM_BASE_URL=http://ollama:11434/v1
+      - LLM_MODEL=phi4
+      - LLM_TIMEOUT_SECONDS=120
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
 
   celery:
     build: .
@@ -54,9 +93,17 @@ services:
       - HTTPS_PROXY=
       - http_proxy=
       - https_proxy=
+      - LLM_BASE_URL=http://ollama:11434/v1
+      - LLM_MODEL=phi4
+      - LLM_TIMEOUT_SECONDS=120
     depends_on:
-      - web
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: ./frontend
@@ -74,3 +121,4 @@ services:
 
 volumes:
   postgres_data_new:
+  ollama_data:   # persists Phi-4 model weights between docker-compose restarts

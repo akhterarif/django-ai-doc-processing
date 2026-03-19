@@ -1,0 +1,48 @@
+{
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py *)",
+      "Bash(celery *)",
+      "Bash(docker-compose *)",
+      "Bash(pip install *)",
+      "Bash(pip freeze*)",
+      "Bash(coverage *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(ls *)",
+      "Bash(find * -name *)",
+      "Bash(redis-cli *)",
+      "Bash(psql *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -f *)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/welabs/projects/python-projects/django-ai-doc-processing && python manage.py check 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "django_ai_doc_processing.settings"
+  }
+}
