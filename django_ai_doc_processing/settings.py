@@ -149,9 +149,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# AI / LLM — Ollama OpenAI-compatible endpoint
-# Point LLM_BASE_URL at any OpenAI-compatible server to swap providers with zero code changes.
-# Default: local Ollama running inside Docker Compose.
-LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://ollama:11434/v1')
-LLM_MODEL = os.getenv('LLM_MODEL', 'phi4')
-LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '120'))
+# AI / LLM — Google Gemini
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+GEMINI_TIMEOUT_SECONDS = int(os.getenv('GEMINI_TIMEOUT_SECONDS', '60'))

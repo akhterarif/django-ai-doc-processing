@@ -2,9 +2,9 @@ import json
 import logging
 import os
 
-import httpx
 import PyPDF2
 import requests
+import google.generativeai as genai
 from celery import shared_task
 from django.conf import settings
 from pydantic import BaseModel, ValidationError
@@ -74,80 +74,62 @@ def extract_text_from_pdf(file_path: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# AI summarization — calls Ollama's OpenAI-compatible endpoint via httpx
+# AI summarization — Google Gemini
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = (
+_PROMPT_TEMPLATE = (
     "You are a document analysis assistant. "
-    "You MUST respond with valid JSON and nothing else — no markdown, no explanation. "
+    "You MUST respond with valid JSON and nothing else — no markdown, no code fences, no explanation. "
     "The JSON object must have exactly three keys: "
     '"summary" (a concise paragraph summarising the document), '
     '"key_points" (an array of up to 5 short strings), '
-    '"topics" (an array of up to 5 single-word or short-phrase strings).'
+    '"topics" (an array of up to 5 single-word or short-phrase strings). '
+    "\n\nAnalyse the following document and return that JSON object."
+    "\n\nDOCUMENT:\n{text}"
 )
 
-# Phi-4 has a 16k token context window. 6 000 chars ≈ 1 500 tokens — well within budget.
-_MAX_CHARS = 6_000
+# gemini-2.0-flash has a 1M token context window; 12 000 chars ≈ 3 000 tokens.
+_MAX_CHARS = 12_000
 
 
 def summarize_with_ai(document_id: int, text: str) -> AnalysisResult:
     """
-    Send the document text to Ollama's OpenAI-compatible chat endpoint and
-    return a validated AnalysisResult. Raises RuntimeError on any failure so
-    the Celery task can retry with exponential back-off.
+    Send the document text to Google Gemini and return a validated AnalysisResult.
+    Raises RuntimeError on any failure so the Celery task can retry with
+    exponential back-off.
     """
-    base_url = settings.LLM_BASE_URL
-    model = settings.LLM_MODEL
-    timeout = settings.LLM_TIMEOUT_SECONDS
+    api_key = settings.GEMINI_API_KEY
+    model_name = settings.GEMINI_MODEL
 
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    "Analyse the following document and return the JSON object "
-                    f"described in your instructions.\n\nDOCUMENT:\n{text[:_MAX_CHARS]}"
-                ),
-            },
-        ],
-        "response_format": {"type": "json_object"},
-        "max_tokens": 512,
-        "temperature": 0.2,
-    }
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
 
-    headers = {
-        "Authorization": f"Bearer {os.getenv('LLM_API_KEY', 'ollama')}",
-        "Content-Type": "application/json",
-    }
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            max_output_tokens=512,
+            temperature=0.2,
+        ),
+    )
 
-    logger.info(f"document_id={document_id} llm_request model={model} base_url={base_url}")
+    prompt = _PROMPT_TEMPLATE.format(text=text[:_MAX_CHARS])
+    logger.info(f"document_id={document_id} gemini_request model={model_name}")
 
-    with httpx.Client(timeout=timeout) as client:
-        response = client.post(
-            f"{base_url}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
-
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"LLM endpoint returned HTTP {response.status_code}: {response.text[:200]}"
-        )
-
-    raw_content = response.json()["choices"][0]["message"]["content"]
-    logger.info(f"document_id={document_id} llm_response_received chars={len(raw_content)}")
+    response = model.generate_content(prompt)
+    raw_content = response.text
+    logger.info(f"document_id={document_id} gemini_response_received chars={len(raw_content)}")
 
     try:
         data = json.loads(raw_content)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"LLM response was not valid JSON: {exc}") from exc
+        raise RuntimeError(f"Gemini response was not valid JSON: {exc}") from exc
 
     try:
         return AnalysisResult(**data)
     except ValidationError as exc:
-        raise RuntimeError(f"LLM response failed schema validation: {exc}") from exc
+        raise RuntimeError(f"Gemini response failed schema validation: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
