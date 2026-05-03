@@ -1,19 +1,35 @@
 from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 
 class Document(models.Model):
     STATUS_CHOICES = [
-        ('uploaded', 'Uploaded'),
-        ('processing', 'Processing'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
+        ('UPLOADED', 'Uploaded'),
+        ('PROCESSING', 'Processing'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
     ]
+    
     file = models.FileField(upload_to='documents/')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='uploaded')
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='UPLOADED')
+    doc_type = models.CharField(max_length=100, null=True, blank=True)
+    summary = models.TextField(blank=True)
+    key_points = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['uploaded_by']),
+            models.Index(fields=['status']),
+        ]
 
     def __str__(self):
         return f"Document {self.id} - {self.status}"
+
 
 class DocumentAnalysis(models.Model):
     document = models.OneToOneField(Document, on_delete=models.CASCADE)
