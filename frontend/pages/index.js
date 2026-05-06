@@ -41,8 +41,8 @@ export default function Home() {
               <li key={doc.id} className="p-4 bg-white rounded shadow">
                 <p>ID: {doc.id}</p>
                 <p>Status: {doc.status}</p>
-                {doc.analysis && (
-                  <p>Summary: {doc.analysis.summary.substring(0, 100)}...</p>
+                {doc.summary && (
+                  <p>Summary: {doc.summary.substring(0, 100)}...</p>
                 )}
                 <Link
                   href={`/documents/${doc.id}`}

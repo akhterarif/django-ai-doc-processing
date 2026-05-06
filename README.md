@@ -16,9 +16,15 @@ Features
     
 *   Text extraction from PDFs
     
-*   AI-powered document summarization
+*   AI-powered document summarization with **Ollama**
     
 *   Key point and topic extraction
+    
+*   Document classification (invoice, resume, legal, other)
+    
+*   Vector embeddings with **ChromaDB**
+    
+*   Semantic document search and Q&A
     
 *   Status tracking and result retrieval
     
@@ -46,7 +52,9 @@ Backend
     
 *   PostgreSQL
     
-*   OpenAI API
+*   Ollama (Local LLM)
+    
+*   ChromaDB (Vector Database)
     
 
 Frontend
@@ -80,7 +88,11 @@ Celery Task Queue (Redis)
       │  
       ▼  
 Background Worker  
-(PDF Extraction + AI Summarization)  
+(PDF Extraction + AI Analysis + Vector Storage)  
+      │  
+      ├─► Ollama LLM Service  
+      │  
+      ├─► ChromaDB Vector Store  
       │  
       ▼  
 PostgreSQL Storage  
@@ -244,6 +256,10 @@ WEBHOOK\_URL=http://your-webhook-endpoint
 Running with Docker (Recommended)
 =================================
 ```
+# Initialize Ollama with required models
+./init_ollama.sh
+
+# Start all services
 docker-compose up --build
 ```
 This starts:
@@ -254,6 +270,7 @@ This starts:
 | Next.js Frontend | 3000     |
 | PostgreSQL       | 5432     |
 | Redis            | 6379     |
+| Ollama           | 11434    |
 | Celery Worker    | Internal |
 
 
@@ -327,6 +344,99 @@ curl http://localhost:8000/api/documents/1/status/
 ```
 * * *
 
+Chat with Document
+------------------
+```
+POST /api/documents/{id}/chat/
+```
+Ask questions about processed documents. Questions are processed asynchronously.
+
+Example
+```
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"question": "What is the main topic of this document?"}' \
+  http://localhost:8000/api/documents/1/chat/
+```
+
+Response
+```json
+{
+  "conversation_id": 1,
+  "status": "PENDING",
+  "message": "Question submitted for processing. Check status to get the answer.",
+  "question": "What is the main topic of this document?"
+}
+```
+* * *
+
+Chat Conversation Status
+------------------------
+```
+GET /api/documents/{id}/chat/{conversation_id}/status/
+```
+Check the processing status of a chat question.
+
+Example
+```
+curl http://localhost:8000/api/documents/1/chat/1/status/
+```
+
+Response
+```json
+{
+  "status": "COMPLETED"
+}
+```
+* * *
+
+Get Chat Conversation
+---------------------
+```
+GET /api/documents/{id}/chat/{conversation_id}/
+```
+Get the complete chat conversation with answer and sources.
+
+Example
+```
+curl http://localhost:8000/api/documents/1/chat/1/
+```
+
+Response
+```json
+{
+  "id": 1,
+  "document": 1,
+  "document_title": "document.pdf",
+  "user": 1,
+  "user_email": "user@example.com",
+  "question": "What is the main topic?",
+  "answer": "The main topic is...",
+  "sources": [
+    {
+      "chunk": "This is a relevant text chunk...",
+      "distance": 0.123
+    }
+  ],
+  "status": "COMPLETED",
+  "created_at": "2024-01-01T12:00:00Z",
+  "updated_at": "2024-01-01T12:00:05Z"
+}
+```
+* * *
+
+List Chat Conversations
+-----------------------
+```
+GET /api/documents/{id}/chat/list/
+```
+List all chat conversations for a document.
+
+Example
+```
+curl http://localhost:8000/api/documents/1/chat/list/
+```
+* * *
+
 Webhook Notifications
 =====================
 
@@ -394,6 +504,26 @@ Frontend will be available at:
 http://localhost:3000
 ```
 Requests to `/api/*` are proxied to the Django backend.
+
+* * *
+
+Testing
+=======
+
+Run the test suite
+```
+python manage.py test documents
+```
+
+Test LLM service
+```
+python test_llm_service.py
+```
+
+Test chat functionality
+```
+python test_chat_functionality.py
+```
 
 * * *
 

@@ -36,20 +36,14 @@ export default function DocumentDetail() {
         <p>
           <strong>Status:</strong> {doc.status}
         </p>
-        {doc.analysis && (
+        {doc.summary && (
           <>
             <h2 className="text-xl font-semibold mt-4">Summary</h2>
-            <p>{doc.analysis.summary}</p>
+            <p>{doc.summary}</p>
             <h3 className="mt-4 font-semibold">Key Points</h3>
             <ul className="list-disc ml-6">
-              {doc.analysis.key_points.map((p, idx) => (
+              {doc.key_points.map((p, idx) => (
                 <li key={idx}>{p}</li>
-              ))}
-            </ul>
-            <h3 className="mt-4 font-semibold">Topics</h3>
-            <ul className="list-disc ml-6">
-              {doc.analysis.topics.map((t, idx) => (
-                <li key={idx}>{t}</li>
               ))}
             </ul>
           </>

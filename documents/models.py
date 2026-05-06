@@ -40,3 +40,31 @@ class DocumentAnalysis(models.Model):
 
     def __str__(self):
         return f"Analysis for Document {self.document.id}"
+
+
+class ChatConversation(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PROCESSING', 'Processing'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+    
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='conversations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.TextField()
+    answer = models.TextField(blank=True)
+    sources = models.JSONField(default=list)  # Store chunk references
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['document', 'user']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"Chat {self.id} - {self.status} - {self.question[:50]}..."

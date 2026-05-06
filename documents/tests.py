@@ -1,89 +1,66 @@
 import json
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
-
-
-LLM_SETTINGS = dict(
-    LLM_BASE_URL='http://testserver',
-    LLM_MODEL='phi4',
-    LLM_TIMEOUT_SECONDS=10,
-)
+from django.test import TestCase
 
 
 class SummarizeWithAITests(TestCase):
     """Unit tests for summarize_with_ai().
 
-    All tests mock httpx.Client so no real network call is made.
-    Use @override_settings to inject predictable LLM_* values.
+    All tests mock the ask_llm function so no real network call is made.
     """
 
-    def _make_mock_client(self, status_code: int, content: str):
-        """Return a mock httpx.Client context manager whose .post() returns the given response."""
-        mock_response = MagicMock()
-        mock_response.status_code = status_code
-        mock_response.text = content
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": content}}]
-        }
-
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = mock_response
-        return mock_client
-
-    @override_settings(**LLM_SETTINGS)
-    @patch('documents.tasks.httpx.Client')
-    def test_happy_path_returns_analysis_result(self, mock_client_cls):
+    @patch('documents.tasks.ask_llm')
+    def test_happy_path_returns_analysis_result(self, mock_ask_llm):
         """Valid JSON response is parsed into an AnalysisResult."""
         valid_payload = json.dumps({
             "summary": "This document covers AI integration.",
             "key_points": ["Point one", "Point two"],
-            "topics": ["AI", "Django"],
+            "doc_type": "other",
         })
-        mock_client_cls.return_value = self._make_mock_client(200, valid_payload)
+        mock_ask_llm.return_value = valid_payload
 
         from documents.tasks import summarize_with_ai
         result = summarize_with_ai(document_id=1, text="Test document text")
 
         self.assertEqual(result.summary, "This document covers AI integration.")
         self.assertEqual(result.key_points, ["Point one", "Point two"])
-        self.assertEqual(result.topics, ["AI", "Django"])
+        self.assertEqual(result.doc_type, "other")
 
-    @override_settings(**LLM_SETTINGS)
-    @patch('documents.tasks.httpx.Client')
-    def test_non_200_response_raises_runtime_error(self, mock_client_cls):
-        """HTTP error from LLM endpoint raises RuntimeError so Celery can retry."""
-        mock_client_cls.return_value = self._make_mock_client(503, "Service Unavailable")
-
-        from documents.tasks import summarize_with_ai
-        with self.assertRaises(RuntimeError) as ctx:
-            summarize_with_ai(document_id=1, text="some text")
-
-        self.assertIn("503", str(ctx.exception))
-
-    @override_settings(**LLM_SETTINGS)
-    @patch('documents.tasks.httpx.Client')
-    def test_invalid_json_response_raises_runtime_error(self, mock_client_cls):
-        """Non-JSON response from LLM raises RuntimeError."""
-        mock_client_cls.return_value = self._make_mock_client(200, "not json at all")
+    @patch('documents.tasks.ask_llm')
+    def test_invalid_json_response_raises_value_error(self, mock_ask_llm):
+        """Non-JSON response from LLM raises ValueError."""
+        mock_ask_llm.return_value = "not json at all"
 
         from documents.tasks import summarize_with_ai
-        with self.assertRaises(RuntimeError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             summarize_with_ai(document_id=1, text="some text")
 
-        self.assertIn("not valid JSON", str(ctx.exception))
+        self.assertIn("invalid JSON", str(ctx.exception))
 
-    @override_settings(**LLM_SETTINGS)
-    @patch('documents.tasks.httpx.Client')
-    def test_valid_json_wrong_schema_raises_runtime_error(self, mock_client_cls):
-        """JSON with wrong keys fails Pydantic validation and raises RuntimeError."""
+    @patch('documents.tasks.ask_llm')
+    def test_valid_json_wrong_schema_raises_value_error(self, mock_ask_llm):
+        """JSON with wrong keys fails validation and raises ValueError."""
         wrong_schema = json.dumps({"unexpected_key": "value"})
-        mock_client_cls.return_value = self._make_mock_client(200, wrong_schema)
+        mock_ask_llm.return_value = wrong_schema
 
         from documents.tasks import summarize_with_ai
-        with self.assertRaises(RuntimeError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             summarize_with_ai(document_id=1, text="some text")
 
-        self.assertIn("schema validation", str(ctx.exception))
+        self.assertIn("missing required analysis fields", str(ctx.exception))
+
+    @patch('documents.tasks.ask_llm')
+    def test_doc_type_validation(self, mock_ask_llm):
+        """Invalid doc_type is normalized to 'other'."""
+        payload = json.dumps({
+            "summary": "Test summary",
+            "key_points": ["Point 1"],
+            "doc_type": "invalid_type",
+        })
+        mock_ask_llm.return_value = payload
+
+        from documents.tasks import summarize_with_ai
+        result = summarize_with_ai(document_id=1, text="Test text")
+
+        self.assertEqual(result.doc_type, "other")

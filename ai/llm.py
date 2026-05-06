@@ -1,6 +1,7 @@
 """
 AI service module for LLM interactions using Ollama API.
 """
+import os
 import requests
 import json
 from typing import Optional
@@ -8,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_GENERATE_ENDPOINT = f"{OLLAMA_BASE_URL}/api/generate"
 
 
@@ -53,7 +54,9 @@ def ask_llm(prompt: str, model: str = "gemma2:9b") -> str:
         raise requests.RequestException("Request to Ollama API timed out")
     except requests.ConnectionError:
         logger.error("Connection error when calling Ollama API")
-        raise requests.RequestException("Could not connect to Ollama API. Make sure Ollama is running on localhost:11434")
+        raise requests.RequestException(
+            f"Could not connect to Ollama API. Make sure Ollama is running at {OLLAMA_BASE_URL}"
+        )
     except requests.RequestException as e:
         logger.error(f"Request error when calling Ollama API: {e}")
         raise
