@@ -8,8 +8,16 @@ class DocumentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Document
-        fields = ['id', 'file', 'uploaded_by', 'uploaded_by_email', 'created_at', 'status', 'doc_type', 'summary', 'key_points']
-        read_only_fields = ['id', 'uploaded_by', 'uploaded_by_email', 'created_at', 'status', 'summary', 'key_points']
+        fields = ['id', 'file', 'file_name', 'file_size', 'uploaded_by', 'uploaded_by_email', 'created_at', 'status', 'doc_type', 'summary', 'key_points']
+        read_only_fields = ['id', 'uploaded_by', 'uploaded_by_email', 'created_at', 'status', 'summary', 'key_points', 'file_name', 'file_size']
+    
+    def create(self, validated_data):
+        """Override create to populate file_name and file_size from uploaded file"""
+        file_obj = validated_data.get('file')
+        if file_obj:
+            validated_data['file_name'] = file_obj.name
+            validated_data['file_size'] = file_obj.size
+        return super().create(validated_data)
 
 
 class DocumentAnalysisSerializer(serializers.ModelSerializer):

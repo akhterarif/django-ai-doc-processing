@@ -13,6 +13,8 @@ class Document(models.Model):
     ]
     
     file = models.FileField(upload_to='documents/')
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveBigIntegerField(default=0)
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='UPLOADED')

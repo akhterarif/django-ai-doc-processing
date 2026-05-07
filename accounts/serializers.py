@@ -17,18 +17,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "email": "user@example.com",
             "first_name": "John",
             "last_name": "Doe",
-            "role": "HR",
+            "is_staff": true,
             "is_active": true
         }
     }
     """
+    username_field = 'email'
     
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
         # Add custom claims to token
         token['email'] = user.email
-        token['role'] = user.role
+        token['is_staff'] = user.is_staff
         return token
     
     def validate(self, attrs):
@@ -42,7 +43,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': user.role,
+            'is_staff': user.is_staff,
             'is_active': user.is_active,
         }
         
@@ -51,32 +52,26 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """User serializer for reading user data"""
+    date_joined = serializers.DateTimeField(source='created_at', read_only=True)
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'role', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined']
+        read_only_fields = ['id', 'date_joined']
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """User serializer for creating new users"""
+    """User serializer for creating new users (registration)"""
     
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    password_confirm = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    date_joined = serializers.DateTimeField(source='created_at', read_only=True)
     
     class Meta:
         model = User
-        fields = ['email', 'password', 'password_confirm', 'first_name', 'last_name', 'role']
-    
-    def validate(self, data):
-        if data['password'] != data['password_confirm']:
-            raise serializers.ValidationError({
-                'password': 'Password fields didn\'t match.'
-            })
-        return data
+        fields = ['id', 'email', 'password', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined']
+        read_only_fields = ['id', 'is_staff', 'is_active', 'date_joined']
     
     def create(self, validated_data):
-        validated_data.pop('password_confirm')
         password = validated_data.pop('password')
         user = User.objects.create_user(**validated_data, password=password)
         return user
@@ -87,4 +82,4 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'last_name', 'role']
+        fields = ['email', 'first_name', 'last_name', 'is_staff']
