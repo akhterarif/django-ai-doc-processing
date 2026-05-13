@@ -64,6 +64,7 @@ def login_view(request):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'role': user.role,
             'is_staff': user.is_staff,
             'is_active': user.is_active,
         }
@@ -84,7 +85,9 @@ def register_view(request):
     }
     Returns: {"access": "...", "refresh": "...", "user": {...}}
     """
-    serializer = UserCreateSerializer(data=request.data)
+    data = request.data.copy()
+    data.pop('role', None)
+    serializer = UserCreateSerializer(data=data)
     
     if serializer.is_valid():
         user = serializer.save()
@@ -100,6 +103,7 @@ def register_view(request):
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
+                'role': user.role,
                 'is_staff': user.is_staff,
                 'is_active': user.is_active,
             }
@@ -134,6 +138,7 @@ class UserViewSet(viewsets.ModelViewSet):
     
     Endpoints:
     - GET /api/accounts/users/: Get all users (admin only)
+    - POST /api/accounts/users/: Create a new user (admin only)
     - GET /api/accounts/users/{id}/: Get user details (admin)
     - PATCH /api/accounts/users/{id}/: Update user (admin)
     - DELETE /api/accounts/users/{id}/: Delete user (admin only)
@@ -144,6 +149,8 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_serializer_class(self):
         """Return appropriate serializer class based on action"""
+        if self.action == 'create':
+            return UserCreateSerializer
         if self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         return UserSerializer

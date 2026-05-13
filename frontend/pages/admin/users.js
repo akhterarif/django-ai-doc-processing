@@ -65,8 +65,13 @@ export default function AdminUsersPage() {
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <Link href="/admin/users/new">
+            <button className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+              + Add User
+            </button>
+          </Link>
         </div>
 
         {error && (
@@ -108,16 +113,10 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {user.is_staff ? (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                          User
-                        </span>
-                      )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                        {user.role || 'User'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {new Date(user.date_joined).toLocaleDateString()}
