@@ -1,9 +1,13 @@
 AI Document Intelligence API
 ============================
 
-A Django-based backend system for processing uploaded PDF documents asynchronously, extracting text, and generating AI-powered summaries using OpenAI API.
+A Django-based backend system for processing uploaded PDF documents asynchronously, extracting text, and generating AI-powered summaries using Ollama(gemma-2-9b).
 
 This project demonstrates a **production-style backend architecture** designed for **scalable AI-powered document processing**, leveraging asynchronous workers, distributed task queues, and containerized services.
+
+Here is the full video of the system, how it works
+https://www.youtube.com/watch?v=oZVRnQ4kvLg
+
 
 * * *
 
@@ -551,7 +555,3 @@ License
 =======
 
 MIT License
-
-***
-
-If you want, I can also show you **3 small changes that would make this project look like a “Staff/Senior Backend Engineer level system” to recruiters** (these are the exact things hiring managers look for on GitHub). 🚀
