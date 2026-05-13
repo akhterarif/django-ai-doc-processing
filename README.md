@@ -551,7 +551,3 @@ License
 =======
 
 MIT License
-
-***
-
-If you want, I can also show you **3 small changes that would make this project look like a “Staff/Senior Backend Engineer level system” to recruiters** (these are the exact things hiring managers look for on GitHub). 🚀
